@@ -1,5 +1,5 @@
 require "ncbo_resolver/version"
 
-module NcboResolver
+module NCBO::Resolver
   # Your code goes here...
 end

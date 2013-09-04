@@ -1,4 +1,4 @@
-# NcboResolver
+# NCBO::Resolver
 
 TODO: Write a gem description
 

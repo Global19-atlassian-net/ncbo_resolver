@@ -5,7 +5,7 @@ require 'ncbo_resolver/version'
 
 Gem::Specification.new do |spec|
   spec.name          = "ncbo_resolver"
-  spec.version       = NcboResolver::VERSION
+  spec.version       = NCBO::Resolver::VERSION
   spec.authors       = ["Paul R Alexander"]
   spec.email         = ["palexander@stanford.edu"]
   spec.description   = %q{TODO: Write a gem description}
