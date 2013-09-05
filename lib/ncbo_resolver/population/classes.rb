@@ -1,8 +1,3 @@
-require 'mysql2'
-require 'ontologies_linked_data'
-require 'progressbar'
-require 'zlib'
-
 module NCBO::Resolver
   module Population
     class Classes
@@ -21,25 +16,30 @@ module NCBO::Resolver
       EOS
 
       def initialize(options = {})
+        require 'mysql2'
+        require 'progressbar'
+        require 'zlib'
+        require 'ontologies_linked_data'
         obs_host = options[:obs_host]
         obs_username = options[:obs_username]
         obs_password = options[:obs_password]
-        redis_host = options[:redis_host]
-        redis_port = options[:redis_port]
-        @obs_client = Mysql2::Client.new(host: obs_host, username: obs_username, password: obs_password, database: "obs_hibernate")
+        redis_host = options[:redis_host] || "localhost"
+        redis_port = options[:redis_port] || 6379
+        @key_storage = options[:key_storage] || KEY_STORAGE
+        @obs_client = Mysql2::Client.new(host: obs_host, username: obs_username, password: obs_password, database: "obs_hibernate") if obs_host && obs_username && obs_password
         @redis = Redis.new(host: redis_host, port: redis_port)
       end
 
-      def to_csv
+      def to_csv(count = nil, concepts = nil)
         # Iterate over the concept records and output to file
         offset = 0
-        count = @obs_client.query(COUNT_CONCEPTS_QUERY)
+        count ||= @obs_client.query(COUNT_CONCEPTS_QUERY)
         iterations = (count.first["concepts"] / LIMIT) + 1
         path = TSV_PATH
         file = File.new(path, "w+")
         iterations.times do
           puts "Starting at record #{offset}"
-          concepts = @obs_client.query(CONCEPT_QUERY.sub("%offset%", offset.to_s))
+          concepts ||= @obs_client.query(CONCEPT_QUERY.sub("%offset%", offset.to_s))
           offset += LIMIT
           concepts.each do |concept|
             uri = concept["uri"]
@@ -48,13 +48,17 @@ module NCBO::Resolver
             ont_id = id[0..ont_id_boundry - 1].to_i
             short_id = id[(ont_id_boundry + 1)..-1]
             acronym = id_mapper(ont_id)
+            next if acronym.nil?
             file.write("#{acronym}\t#{short_id}\t#{uri}\n")
           end
         end
         file.close
+        return file
       end
       
       def populate(options = {})
+        delete_keys()
+        
         chunk_size = options[:chunk_size] || 10_000 # in lines
         num_threads = options[:num_threads] || 4
         
@@ -67,7 +71,7 @@ module NCBO::Resolver
         puts "Starting @redis storage for #{line_count} classes"
 
         start = Time.now
-        line_chunks = read_file(tsv_path, line_count)
+        line_chunks = read_file(num_threads, tsv_path, line_count)
         
         # Parse out data from file
         data = parse_file(num_threads, chunk_size, line_chunks)
@@ -76,22 +80,21 @@ module NCBO::Resolver
         line_chunks = nil
 
         # Store to redis
-        store_to_redis(num_threads, chunk_size, data)
+        count = store_to_redis(num_threads, chunk_size, data)
         
         puts "Took #{Time.now - start}s to store #{count} class mappings"
       end
       
       def delete_keys
-        # Delete old keys
-        keys = @redis.smembers(KEY_STORAGE)
+        keys = @redis.smembers(@key_storage)
         puts "Deleting #{keys.length} class mapping entries"
         keys.each_slice(500_000) {|chunk| @redis.del chunk}
-        @redis.del KEY_STORAGE
+        @redis.del @key_storage
       end
 
       private
       
-      def read_file(tsv_path, line_count)
+      def read_file(num_threads, tsv_path, line_count)
         line_chunks = []
         File.foreach(tsv_path).each_slice((line_count.to_f / num_threads.to_f).ceil) do |chunk|
           line_chunks << chunk.dup
@@ -143,8 +146,8 @@ module NCBO::Resolver
                   @redis.lpush hashed_uri, short_id_key
 
                   # Store keys in a set for delete
-                  @redis.sadd KEY_STORAGE, short_id_key
-                  @redis.sadd KEY_STORAGE, hashed_uri
+                  @redis.sadd @key_storage, short_id_key
+                  @redis.sadd @key_storage, hashed_uri
 
                   count += 1
                 end
@@ -155,6 +158,7 @@ module NCBO::Resolver
         # Wait for completion
         threads.each {|t| t.join}
         puts "Storing took #{Time.now - store_redis}s"
+        count
       end
 
       def id_mapper(ont_id)
