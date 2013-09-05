@@ -8,8 +8,8 @@ class TestPopulationClasses < TestCase
       rest_url: "http://rest.bioontology.org/bioportal"
     }
     rest_helper = NCBO::Resolver::RestHelper.new(rest_options)
-    @@populator = NCBO::Resolver::Population::Classes.new(key_storage: "tst:cls:keys")
-    @@ont_populator = NCBO::Resolver::Population::Ontologies.new(key_storage: "tst:ont:keys", rest_helper: rest_helper)
+    @@populator = NCBO::Resolver::Population::Classes.new(key_storage: "tst:cls:keys", key_prefix: "tst")
+    @@ont_populator = NCBO::Resolver::Population::Ontologies.new(key_storage: "tst:ont:keys", key_prefix: "tst", rest_helper: rest_helper)
     @@ont_populator.populate
   end
   

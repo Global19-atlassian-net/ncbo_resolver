@@ -26,6 +26,7 @@ module NCBO::Resolver
         redis_host = options[:redis_host] || "localhost"
         redis_port = options[:redis_port] || 6379
         @key_storage = options[:key_storage] || KEY_STORAGE
+        @key_prefix = options[:key_prefix] || ""
         @obs_client = Mysql2::Client.new(host: obs_host, username: obs_username, password: obs_password, database: "obs_hibernate") if obs_host && obs_username && obs_password
         @redis = Redis.new(host: redis_host, port: redis_port)
       end
@@ -113,8 +114,9 @@ module NCBO::Resolver
             chunk.each_slice(chunk_size) do |lines|
               lines.each do |line|
                 acronym, short_id, uri = line.scan(line_splitter).first
-                hashed_uri = Zlib::crc32(uri)
-                short_id_key = "old:#{acronym}:#{short_id}"
+                hashed_uri = @key_prefix
+                hashed_uri << Zlib::crc32(uri)
+                short_id_key = "#{@key_prefix}old:#{acronym}:#{short_id}"
 
                 data << [acronym, short_id, uri, hashed_uri, short_id_key]
               end

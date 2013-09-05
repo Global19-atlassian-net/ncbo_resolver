@@ -13,6 +13,7 @@ module NCBO::Resolver
         redis_host = options[:redis_host] || "localhost"
         redis_port = options[:redis_port] || 6379
         @key_storage = options[:key_storage] || KEY_STORAGE
+        @key_prefix = options[:key_prefix] || ""
         @redis = Redis.new(host: redis_host, port: redis_port)
       end
 
@@ -28,20 +29,20 @@ module NCBO::Resolver
             acronym = @rest_helper.safe_acronym(o.abbreviation)
 
             # Virtual id from acronym
-            @redis.set "old:acronym_from_virtual:#{o.ontologyId}", acronym
-            @redis.sadd @key_storage, "old:acronym_from_virtual:#{o.ontologyId}"
+            @redis.set "#{@key_prefix}old:acronym_from_virtual:#{o.ontologyId}", acronym
+            @redis.sadd @key_storage, "#{@key_prefix}old:acronym_from_virtual:#{o.ontologyId}"
     
             # Acronym from virtual id
-            @redis.set "old:virtual_from_acronym:#{acronym}", o.ontologyId
-            @redis.sadd @key_storage, "old:virtual_from_acronym:#{acronym}"
+            @redis.set "#{@key_prefix}old:virtual_from_acronym:#{acronym}", o.ontologyId
+            @redis.sadd @key_storage, "#{@key_prefix}old:virtual_from_acronym:#{acronym}"
     
             # This call works for views and ontologies (gets all versions from related virtual id)
             versions = @rest_helper.ontology_versions(o.ontologyId)
             versions = versions.is_a?(Array) ? versions : [versions]
             versions.each do |ov|
               # Version to virtual mapping
-              @redis.set "old:virtual_from_version:#{ov.id}", o.ontologyId
-              @redis.sadd @key_storage, "old:virtual_from_version:#{ov.id}"
+              @redis.set "#{@key_prefix}old:virtual_from_version:#{ov.id}", o.ontologyId
+              @redis.sadd @key_storage, "#{@key_prefix}old:virtual_from_version:#{ov.id}"
             end
     
             pbar.inc
