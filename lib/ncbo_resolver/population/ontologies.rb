@@ -27,7 +27,7 @@ module NCBO::Resolver
         @redis.pipelined do
           onts_and_views.each do |o|
             acronym = @rest_helper.safe_acronym(o.abbreviation)
-
+            
             # Virtual id from acronym
             @redis.set "#{@key_prefix}old:acronym_from_virtual:#{o.ontologyId}", acronym
             @redis.sadd @key_storage, "#{@key_prefix}old:acronym_from_virtual:#{o.ontologyId}"
