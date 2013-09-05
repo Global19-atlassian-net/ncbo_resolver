@@ -4,7 +4,6 @@ require 'ostruct'
 require 'json'
 require 'open-uri'
 require 'recursive-open-struct'
-require 'progressbar'
 require 'net/http'
 require 'redis'
 
