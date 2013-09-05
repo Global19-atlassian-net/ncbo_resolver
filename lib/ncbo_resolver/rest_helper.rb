@@ -242,7 +242,7 @@ module NCBO::Resolver
       RDF::IRI.new(iri)
     end
 
-    def lookup_property_uri(ontology_id, property_id)
+    def property_uri(ontology_id, property_id)
       property_id = property_id.to_s
       return nil if property_id.nil? || property_id.eql?("")
       return property_id if property_id.start_with?("http://") || property_id.start_with?("https://")
@@ -251,43 +251,6 @@ module NCBO::Resolver
       rescue OpenURI::HTTPError => http_error
         return nil if http_error.message.eql?("404 Not Found")
       end
-    end
-
-    ##
-    # Using the combination of the short_id (EX: "TM122581") and version_id (EX: "42389"),
-    # this will do a Redis lookup and give you the full URI. The short_id is based on
-    # what is produced by the `shorten_uri` method and should match Resource Index localConceptId output.
-    # In fact, doing localConceptId.split("/") should give you the parameters for this method.
-    # Population of redis data available here:
-    # https://github.com/ncbo/ncbo_migration/blob/master/id_mappings_classes.rb
-    def uri_from_short_id(version_id, short_id)
-      acronym = self.acronym_from_version_id(version_id)
-      uri = @redis.get("old_to_new:uri_from_short_id:#{acronym}:#{short_id}")
-
-      if uri.nil? && short_id.include?(':')
-        try_again_id = short_id.split(':').last
-        uri = @redis.get("old_to_new:uri_from_short_id:#{acronym}:#{try_again_id}")
-      end
-      uri
-    end
-
-    ##
-    # Given a virtual id, return the acronym (uses a Redis lookup)
-    # Population of redis data available here:
-    # https://github.com/ncbo/ncbo_migration/blob/master/id_mappings_ontology.rb
-    # @param virtual_id [Integer] the ontology version ID
-    def acronym_from_virtual_id(virtual_id)
-      @redis.get("old_to_new:acronym_from_virtual:#{virtual_id}")
-    end
-
-    ##
-    # Given a version id, return the acronym (uses a Redis lookup)
-    # Population of redis data available here:
-    # https://github.com/ncbo/ncbo_migration/blob/master/id_mappings_ontology.rb
-    # @param version_id [Integer] the ontology version ID
-    def acronym_from_version_id(version_id)
-      virtual = @redis.get("old_to_new:virtual_from_version:#{version_id}")
-      self.acronym_from_virtual_id(virtual)
     end
 
     def uri?(string)
