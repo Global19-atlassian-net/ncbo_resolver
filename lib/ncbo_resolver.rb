@@ -10,6 +10,8 @@ module NCBO::Resolver
     redis_host = options[:redis_host] || "localhost"
     redis_port = options[:redis_port] || 6379
     @@redis = Redis.new(host: redis_host, port: redis_port)
+    puts "(RS) >> Using Resolver Redis instance at "+
+      "#{redis_host}:#{redis_port}"
     true
   end
   
